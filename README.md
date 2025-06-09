@@ -1,28 +1,17 @@
 # BugBox
 
 ## Proposed File  Structure
-chaoslab/
-├── docker-compose.yml
-├── .env
-├── bugbox_demo.ipynb           # Jupyter notebook to run bugs
-├── README.md
-├── services/
-│   ├── bug_simulator/
-│   │   ├── Dockerfile
-│   │   └── app.js
-│   ├── log_collector/
-│   │   ├── Dockerfile
-│   │   └── app.js
-│   ├── health_monitor/
-│   │   ├── Dockerfile
-│   │   └── monitor.py
-├── prometheus/
-│   └── prometheus.yml
-├── grafana/                       # For dashboards and volumes
-│   └── dashboards/
-│       └── example-dashboard.json
-├── dashboard/                     # (Optional frontend)
-│   └── (React code here)
+
+- docker-compose.yml: Orchestrates all services and dependencies.
+- .env: Will store environment variables for configuration.
+- bugbox_demo.ipynb: Reproducible notebook to test bug injection.
+- services/: Contains the three main microservices:
+  - `bug_simulator`: Injects crashes, latency, and resource strain.
+  - `log_collector`: Collects structured logs.
+  - `health_monitor`: Tracks service availability.
+- prometheus/: Configuration for Prometheus metrics scraping.
+- grafana/: Contains Grafana dashboard JSONs for monitoring.
+- dashboard/ *(optional)*: UI built with React (for logs and metrics).
 
 ## Getting Started
 
