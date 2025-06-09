@@ -27,7 +27,9 @@ chaoslab/
 ## Getting Started
 
 ```bash
-docker-compose up --build
+Run docker-compose up --build
+
+Next, run the bugboxdemo.ipynb notebook to run a simple bugbox simulation.
 
 Access:
 
