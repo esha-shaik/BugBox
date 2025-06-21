@@ -27,3 +27,6 @@ http://localhost:5001/inject/failure – Simulate bugs
 http://localhost:9090 – Prometheus
 
 http://localhost:3000 – Grafana
+
+## Proof of Concept
+interface.html serves as a proof of concept on what BugBox will look like and how it can serve coders.

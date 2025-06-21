@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BugBox - Chaos Engineering Sandbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel h3 {
+            margin-bottom: 15px;
+            color: #4ecdc4;
+            font-size: 1.3em;
+        }
+
+        .service-mesh {
+            grid-column: 1 / -1;
+            margin-bottom: 20px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .service {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .service.healthy {
+            border-color: #4ecdc4;
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .service.degraded {
+            border-color: #ffd93d;
+            box-shadow: 0 0 15px rgba(255, 217, 61, 0.3);
+            animation: pulse-warning 2s infinite;
+        }
+
+        .service.failed {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.3);
+            animation: pulse-error 1s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes pulse-error {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .service-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .service-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .service-status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .service-metrics {
+            margin-top: 10px;
+            font-size: 0.8em;
+        }
+
+        .chaos-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .chaos-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+        }
+
+        .chaos-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(238, 90, 82, 0.4);
+        }
+
+        .chaos-button:active {
+            transform: translateY(0);
+        }
+
+        .chaos-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .metrics-chart {
+            height: 200px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-top: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(78, 205, 196, 0.3));
+        }
+
+        .logs-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .log-info {
+            color: #4ecdc4;
+        }
+
+        .log-warning {
+            color: #ffd93d;
+            background: rgba(255, 217, 61, 0.1);
+        }
+
+        .log-error {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .scenario-selector {
+            margin-bottom: 20px;
+        }
+
+        .scenario-selector select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 10px 15px;
+            color: white;
+            font-size: 1em;
+            width: 100%;
+        }
+
+        .scenario-selector option {
+            background: #2a5298;
+            color: white;
+        }
+
+        .reset-button {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+
+        .reset-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(68, 160, 141, 0.4);
+        }
+
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #4ecdc4, transparent);
+            opacity: 0.6;
+            animation: flow 2s linear infinite;
+        }
+
+        @keyframes flow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .chaos-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .services-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BugBox</h1>
+            <p>Educational Chaos Engineering Sandbox - Learn resilience patterns through controlled failure injection</p>
+        </div>
+
+        <div class="scenario-selector">
+            <select id="scenarioSelect">
+                <option value="ecommerce">E-commerce Platform</option>
+                <option value="banking">Banking System</option>
+                <option value="social">Social Media Platform</option>
+                <option value="iot">IoT Data Pipeline</option>
+            </select>
+            <button class="reset-button" onclick="resetSystem()">Reset System</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="panel service-mesh">
+                <h3>Service Mesh Topology</h3>
+                <div class="services-grid" id="servicesGrid">
+                    <!-- Services will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Chaos Engineering Controls</h3>
+                <div class="chaos-controls" id="chaosControls">
+                    <!-- Chaos buttons will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>System Metrics</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+                    <div>
+                        <div class="metric-value" id="throughput">847</div>
+                        <div class="metric-label">Req/sec</div>
+                    </div>
+                    <div>
+                        <div class="metric-value" id="latency">23ms</div>
+                        <div class="metric-label">Avg Latency</div>
+                    </div>
+                    <div>
+                        <div class="metric-value" id="errorRate">0.1%</div>
+                        <div class="metric-label">Error Rate</div>
+                    </div>
+                </div>
+                <div class="metrics-chart">
+                    <canvas id="metricsChart" style="width: 100%; height: 100%;"></canvas>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>System Logs & Traces</h3>
+                <div class="logs-container" id="logsContainer">
+                    <!-- Logs will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class BugBox {
+            constructor() {
+                this.scenarios = {
+                    ecommerce: {
+                        name: "E-commerce Platform",
+                        services: [
+                            { name: "API Gateway", icon: "🚪", status: "healthy", latency: 12, cpu: 15 },
+                            { name: "User Service", icon: "👤", status: "healthy", latency: 45, cpu: 25 },
+                            { name: "Product Service", icon: "📦", status: "healthy", latency: 32, cpu: 30 },
+                            { name: "Cart Service", icon: "🛒", status: "healthy", latency: 28, cpu: 20 },
+                            { name: "Payment Service", icon: "💳", status: "healthy", latency: 67, cpu: 35 },
+                            { name: "Inventory Service", icon: "📊", status: "healthy", latency: 41, cpu: 22 },
+                            { name: "Notification Service", icon: "📧", status: "healthy", latency: 89, cpu: 18 },
+                            { name: "Database", icon: "💾", status: "healthy", latency: 15, cpu: 40 }
+                        ]
+                    },
+                    banking: {
+                        name: "Banking System",
+                        services: [
+                            { name: "API Gateway", icon: "🏦", status: "healthy", latency: 8, cpu: 12 },
+                            { name: "Auth Service", icon: "🔐", status: "healthy", latency: 34, cpu: 28 },
+                            { name: "Account Service", icon: "💰", status: "healthy", latency: 23, cpu: 32 },
+                            { name: "Transaction Service", icon: "💸", status: "healthy", latency: 45, cpu: 45 },
+                            { name: "Fraud Detection", icon: "🛡️", status: "healthy", latency: 156, cpu: 60 },
+                            { name: "Ledger Service", icon: "📖", status: "healthy", latency: 67, cpu: 38 },
+                            { name: "Core Banking", icon: "🏛️", status: "healthy", latency: 234, cpu: 55 }
+                        ]
+                    },
+                    social: {
+                        name: "Social Media Platform",
+                        services: [
+                            { name: "Load Balancer", icon: "⚖️", status: "healthy", latency: 5, cpu: 8 },
+                            { name: "Feed Service", icon: "📱", status: "healthy", latency: 78, cpu: 42 },
+                            { name: "User Service", icon: "👥", status: "healthy", latency: 34, cpu: 25 },
+                            { name: "Media Service", icon: "🖼️", status: "healthy", latency: 123, cpu: 65 },
+                            { name: "Comment Service", icon: "💬", status: "healthy", latency: 45, cpu: 30 },
+                            { name: "Search Service", icon: "🔍", status: "healthy", latency: 89, cpu: 48 },
+                            { name: "Cache Layer", icon: "⚡", status: "healthy", latency: 2, cpu: 15 }
+                        ]
+                    },
+                    iot: {
+                        name: "IoT Data Pipeline",
+                        services: [
+                            { name: "IoT Gateway", icon: "📡", status: "healthy", latency: 23, cpu: 35 },
+                            { name: "Message Queue", icon: "📨", status: "healthy", latency: 12, cpu: 20 },
+                            { name: "Data Processor", icon: "⚙️", status: "healthy", latency: 145, cpu: 70 },
+                            { name: "Time Series DB", icon: "📈", status: "healthy", latency: 67, cpu: 55 },
+                            { name: "Analytics Engine", icon: "🧠", status: "healthy", latency: 234, cpu: 80 },
+                            { name: "Alert Service", icon: "🚨", status: "healthy", latency: 89, cpu: 25 },
+                            { name: "Dashboard API", icon: "📊", status: "healthy", latency: 45, cpu: 30 }
+                        ]
+                    }
+                };
+
+                this.currentScenario = 'ecommerce';
+                this.systemMetrics = {
+                    throughput: 847,
+                    latency: 23,
+                    errorRate: 0.1
+                };
+                this.logs = [];
+                this.chaosActive = false;
+
+                this.init();
+            }
+
+            init() {
+                this.renderServices();
+                this.renderChaosControls();
+                this.startMetricsUpdater();
+                this.addLog('info', 'BugBox initialized - All services healthy');
+                
+                document.getElementById('scenarioSelect').addEventListener('change', (e) => {
+                    this.currentScenario = e.target.value;
+                    this.resetSystem();
+                });
+            }
+
+            renderServices() {
+                const grid = document.getElementById('servicesGrid');
+                const services = this.scenarios[this.currentScenario].services;
+                
+                grid.innerHTML = services.map(service => `
+                    <div class="service ${service.status}" data-service="${service.name}">
+                        <div class="service-icon">${service.icon}</div>
+                        <div class="service-name">${service.name}</div>
+                        <div class="service-status">${service.status.toUpperCase()}</div>
+                        <div class="service-metrics">
+                            <div>Latency: ${service.latency}ms</div>
+                            <div>CPU: ${service.cpu}%</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            renderChaosControls() {
+                const controls = document.getElementById('chaosControls');
+                const chaosExperiments = [
+                    { name: "Network Latency", action: "injectLatency", description: "Add 500ms delay" },
+                    { name: "Service Failure", action: "injectFailure", description: "Crash random service" },
+                    { name: "CPU Spike", action: "injectCpuSpike", description: "Max out CPU usage" },
+                    { name: "Memory Leak", action: "injectMemoryLeak", description: "Gradual memory increase" },
+                    { name: "Database Slowdown", action: "injectDbSlowdown", description: "Slow database queries" },
+                    { name: "Cascading Failure", action: "injectCascadingFailure", description: "Chain reaction failure" }
+                ];
+
+                controls.innerHTML = chaosExperiments.map(exp => `
+                    <button class="chaos-button" onclick="bugBox.${exp.action}()" ${this.chaosActive ? 'disabled' : ''}>
+                        ${exp.name}
+                        <div style="font-size: 0.8em; font-weight: normal; margin-top: 5px;">${exp.description}</div>
+                    </button>
+                `).join('');
+            }
+
+            injectLatency() {
+                this.chaosActive = true;
+                this.addLog('warning', 'CHAOS: Injecting network latency (500ms delay)');
+                
+                const services = this.scenarios[this.currentScenario].services;
+                services.forEach(service => {
+                    service.latency += Math.random() * 500;
+                    if (service.latency > 200) service.status = 'degraded';
+                });
+
+                this.systemMetrics.latency += 150;
+                this.systemMetrics.throughput *= 0.7;
+                this.systemMetrics.errorRate += 2.5;
+
+                this.renderServices();
+                this.renderChaosControls();
+                setTimeout(() => this.recoverFromChaos(), 10000);
+            }
+
+            injectFailure() {
+                this.chaosActive = true;
+                const services = this.scenarios[this.currentScenario].services;
+                const randomService = services[Math.floor(Math.random() * services.length)];
+                
+                randomService.status = 'failed';
+                randomService.latency = 0;
+                randomService.cpu = 0;
+                
+                this.addLog('error', `CHAOS: ${randomService.name} has crashed!`);
+                this.addLog('warning', 'Circuit breaker activated for failed service');
+                
+                this.systemMetrics.throughput *= 0.4;
+                this.systemMetrics.errorRate += 15.7;
+                
+                this.renderServices();
+                this.renderChaosControls();
+                setTimeout(() => this.recoverFromChaos(), 8000);
+            }
+
+            injectCpuSpike() {
+                this.chaosActive = true;
+                this.addLog('warning', 'CHAOS: CPU spike detected across services');
+                
+                const services = this.scenarios[this.currentScenario].services;
+                services.forEach(service => {
+                    service.cpu = Math.min(100, service.cpu + Math.random() * 60);
+                    if (service.cpu > 80) service.status = 'degraded';
+                });
+
+                this.systemMetrics.latency += 200;
+                this.systemMetrics.throughput *= 0.6;
+                this.systemMetrics.errorRate += 5.2;
+
+                this.renderServices();
+                this.renderChaosControls();
+                setTimeout(() => this.recoverFromChaos(), 12000);
+            }
+
+            injectMemoryLeak() {
+                this.chaosActive = true;
+                this.addLog('warning', 'CHAOS: Memory leak detected - gradual degradation');
+                
+                let leakInterval = setInterval(() => {
+                    const services = this.scenarios[this.currentScenario].services;
+                    services.forEach(service => {
+                        service.latency += Math.random() * 20;
+                        if (service.latency > 150) service.status = 'degraded';
+                    });
+                    
+                    this.systemMetrics.latency += 10;
+                    this.systemMetrics.throughput *= 0.95;
+                    this.systemMetrics.errorRate += 0.5;
+                    
+                    this.renderServices();
+                }, 1000);
+
+                setTimeout(() => {
+                    clearInterval(leakInterval);
+                    this.recoverFromChaos();
+                }, 15000);
+            }
+
+            injectDbSlowdown() {
+                this.chaosActive = true;
+                this.addLog('warning', 'CHAOS: Database connection pool exhausted');
+                
+                const services = this.scenarios[this.currentScenario].services;
+                const dbServices = services.filter(s => s.name.includes('Database') || s.name.includes('DB') || s.name.includes('Ledger'));
+                
+                dbServices.forEach(service => {
+                    service.latency += 800;
+                    service.status = 'degraded';
+                    service.cpu += 40;
+                });
+
+                this.systemMetrics.latency += 300;
+                this.systemMetrics.throughput *= 0.3;
+                this.systemMetrics.errorRate += 8.9;
+
+                this.renderServices();
+                this.renderChaosControls();
+                setTimeout(() => this.recoverFromChaos(), 14000);
+            }
+
+            injectCascadingFailure() {
+                this.chaosActive = true;
+                this.addLog('error', 'CHAOS: Initiating cascading failure scenario');
+                
+                const services = this.scenarios[this.currentScenario].services;
+                let failureDelay = 0;
+
+                services.forEach((service, index) => {
+                    setTimeout(() => {
+                        if (Math.random() > 0.3) {
+                            service.status = Math.random() > 0.5 ? 'failed' : 'degraded';
+                            service.latency += Math.random() * 1000;
+                            service.cpu = service.status === 'failed' ? 0 : Math.min(100, service.cpu + 50);
+                            
+                            this.addLog('error', `Cascade effect: ${service.name} is now ${service.status}`);
+                            this.renderServices();
+                        }
+                    }, failureDelay);
+                    failureDelay += 1500;
+                });
+
+                this.systemMetrics.throughput *= 0.1;
+                this.systemMetrics.latency += 500;
+                this.systemMetrics.errorRate += 45.3;
+
+                this.renderChaosControls();
+                setTimeout(() => this.recoverFromChaos(), 20000);
+            }
+
+            recoverFromChaos() {
+                this.addLog('info', 'Auto-recovery initiated - Services healing');
+                this.resetSystem();
+            }
+
+            resetSystem() {
+                this.chaosActive = false;
+                
+                // Reset all services to healthy state
+                Object.values(this.scenarios).forEach(scenario => {
+                    scenario.services.forEach(service => {
+                        service.status = 'healthy';
+                        service.latency = Math.max(5, service.latency * 0.1 + Math.random() * 50);
+                        service.cpu = Math.max(10, Math.random() * 50);
+                    });
+                });
+
+                // Reset metrics
+                this.systemMetrics = {
+                    throughput: 847 + Math.random() * 200,
+                    latency: 20 + Math.random() * 20,
+                    errorRate: 0.1 + Math.random() * 0.5
+                };
+
+                this.renderServices();
+                this.renderChaosControls();
+                this.addLog('info', 'System reset complete - All services restored');
+            }
+
+            addLog(level, message) {
+                const timestamp = new Date().toLocaleTimeString();
+                this.logs.unshift({ level, message, timestamp });
+                
+                if (this.logs.length > 50) this.logs = this.logs.slice(0, 50);
+                
+                const container = document.getElementById('logsContainer');
+                container.innerHTML = this.logs.map(log => 
+                    `<div class="log-entry log-${log.level}">[${log.timestamp}] ${log.message}</div>`
+                ).join('');
+            }
+
+            startMetricsUpdater() {
+                setInterval(() => {
+                    // Simulate realistic metric fluctuations
+                    if (!this.chaosActive) {
+                        this.systemMetrics.throughput += (Math.random() - 0.5) * 50;
+                        this.systemMetrics.latency += (Math.random() - 0.5) * 5;
+                        this.systemMetrics.errorRate += (Math.random() - 0.5) * 0.1;
+                    }
+
+                    // Keep metrics within reasonable bounds
+                    this.systemMetrics.throughput = Math.max(0, this.systemMetrics.throughput);
+                    this.systemMetrics.latency = Math.max(1, this.systemMetrics.latency);
+                    this.systemMetrics.errorRate = Math.max(0, this.systemMetrics.errorRate);
+
+                    // Update display
+                    document.getElementById('throughput').textContent = Math.round(this.systemMetrics.throughput);
+                    document.getElementById('latency').textContent = Math.round(this.systemMetrics.latency) + 'ms';
+                    document.getElementById('errorRate').textContent = this.systemMetrics.errorRate.toFixed(1) + '%';
+
+                    // Add occasional log entries during normal operation
+                    if (!this.chaosActive && Math.random() < 0.1) {
+                        const normalLogs = [
+                            'Health check passed for all services',
+                            'Metrics collection completed',
+                            'Load balancer redistributed traffic',
+                            'Cache hit ratio: 94.2%',
+                            'Background job completed successfully'
+                        ];
+                        this.addLog('info', normalLogs[Math.floor(Math.random() * normalLogs.length)]);
+                    }
+                }, 2000);
+            }
+        }
+
+        // Global functions
+        function resetSystem() {
+            bugBox.resetSystem();
+        }
+
+        // Initialize BugBox
+        const bugBox = new BugBox();
+    </script>
+</body>
+</html>

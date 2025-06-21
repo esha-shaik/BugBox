@@ -19,6 +19,26 @@ services:
     networks:
       - chaosnet
 
+  loki:
+    image: grafana/loki:2.9.1
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ./loki-config.yaml:/etc/loki/local-config.yaml
+    networks:
+      - chaosnet
+
+  promtail:
+    image: grafana/promtail:2.9.1
+    volumes:
+      - /var/log:/var/log
+      - ./promtail-config.yaml:/etc/promtail/promtail.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: -config.file=/etc/promtail/promtail.yaml
+    networks:
+      - chaosnet
+
   prometheus:
     image: prom/prometheus
     volumes:
@@ -36,6 +56,25 @@ services:
       - ./grafana:/var/lib/grafana
     networks:
       - chaosnet
+    
+  traffic_generator:
+    build: ./services/traffic_generator
+    depends_on:
+      - chaosnet
 
+  demo_server:
+    build: ./services/demo_server
+    ports:
+      - "5005:5005"
+    networks:
+      - chaosnet
+
+  demo_client:
+    build: ./services/demo_client
+    depends_on:
+      - demo_server
+    networks:
+      - chaosnet
+      
 networks:
   chaosnet:
