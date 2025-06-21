@@ -28,5 +28,8 @@ http://localhost:9090 – Prometheus
 
 http://localhost:3000 – Grafana
 
+```
+
 ## Proof of Concept
 interface.html serves as a proof of concept on what BugBox will look like and how it can serve coders.
+To view this interface click [here](https://htmlpreview.github.io/?https://raw.githubusercontent.com/esha-shaik/BugBox/refs/heads/main/interface.html)
