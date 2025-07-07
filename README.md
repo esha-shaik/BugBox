@@ -36,7 +36,7 @@ Run `bugbox_demo.ipynb` in Jupyter to test simulate bug injection and observe me
 
 ### 3. Try the reproducible frontend
 
-Open [`reproducible.html`](https://esha-shaik.github.io/BugBox/reproducible.html) in your browser to interactively inject chaos and view the service graph.
+Open [`reproducible.html`](https://esha-shaik.github.io/BugBox/reproducible.html) in your browser to interactively inject chaos and view the service graph. Click on one of the Chaos Engineering controls to choose a simulation and to see the graph and the impact on the services. At the top you have the option to add your service, follow directions below to see how those work.
 
 #### Add your own service
 
