@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
     <title>BugBox - Chaos Engineering Sandbox</title>
     <style>
         * {
@@ -321,6 +324,13 @@
             <button class="reset-button" onclick="resetSystem()">Reset System</button>
         </div>
 
+        <div class="panel">
+            <h3>Add Your Service</h3>
+            <input type="text" id="serviceUrl" placeholder="https://example.com/api" style="width: 100%; padding: 10px; margin-bottom: 10px;" />
+            <button class="chaos-button" onclick="bugBox.addUserService()">Add Service</button>
+        </div>
+
+
         <div class="dashboard">
             <div class="panel service-mesh">
                 <h3>Service Mesh Topology</h3>
@@ -352,9 +362,7 @@
                         <div class="metric-label">Error Rate</div>
                     </div>
                 </div>
-                <div class="metrics-chart">
-                    <canvas id="metricsChart" style="width: 100%; height: 100%;"></canvas>
-                </div>
+                <div id="serviceGraph" style="height: 400px; background: rgba(255,255,255,0.05); border-radius: 10px;"></div>
             </div>
 
             <div class="panel">
@@ -367,6 +375,7 @@
     </div>
 
     <script>
+        let graphNetwork = null; 
         class BugBox {
             constructor() {
                 this.scenarios = {
@@ -461,6 +470,91 @@
                     </div>
                 `).join('');
             }
+            
+            renderServiceGraph(services) {
+                const container = document.getElementById('serviceGraph');
+
+                const nodes = services.map((service, i) => ({
+                    id: service.name,
+                    label: `${service.icon} ${service.name}`,
+                    color: service.status === 'healthy' ? '#4ecdc4'
+                        : service.status === 'degraded' ? '#ffd93d'
+                        : '#ff6b6b'
+                }));
+
+                const edges = [];
+                for (let i = 1; i < services.length; i++) {
+                    const fromService = services[Math.floor(Math.random() * i)];
+                    const toService = services[i];
+                    edges.push({
+                        from: fromService.name,
+                        to: toService.name,
+                        arrows: 'to',
+                        color: toService.latency > 150 ? '#ff6b6b'
+                            : toService.latency > 80 ? '#ffd93d'
+                            : '#4ecdc4'
+                    });
+                }
+                const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+                const options = {
+                    layout: {
+                        hierarchical: {
+                            direction: "LR",
+                            sortMethod: "directed"
+                        }
+                    },
+                    edges: {
+                        smooth: true,
+                        arrows: { to: { enabled: true } },
+                        color: '#999'
+                    },
+                    physics: false
+                };
+
+                if (!graphNetwork) {
+                    graphNetwork = new vis.Network(container, data, options);
+                } else {
+                    graphNetwork.setData(data);
+                }
+            }
+
+            addUserService() {
+                const url = document.getElementById('serviceUrl').value.trim();
+                if (!url) return alert("Please enter a valid URL");
+
+                const newService = {
+                    name: url,
+                    icon: "🧪",
+                    status: "checking",
+                    latency: 0,
+                    cpu: 0
+                };
+
+                this.scenarios[this.currentScenario].services.push(newService);
+                this.renderServices();
+                this.renderServiceGraph(this.scenarios[this.currentScenario].services);
+                this.addLog('info', `Attempting to contact service: ${url}`);
+
+                const start = performance.now();
+                fetch(url)
+                    .then(res => {
+                        const latency = performance.now() - start;
+                        newService.latency = Math.round(latency);
+                        newService.cpu = 10 + Math.random() * 30;
+                        newService.status = res.ok ? 'healthy' : 'degraded';
+                        this.addLog(res.ok ? 'info' : 'warning', `Service responded: ${url} (${Math.round(latency)}ms)`);
+                    })
+                    .catch(err => {
+                        newService.status = 'failed';
+                        newService.latency = 0;
+                        newService.cpu = 0;
+                        this.addLog('error', `Failed to contact service: ${url}`);
+                    })
+                    .finally(() => {
+                        this.renderServices();
+                        this.renderServiceGraph(this.scenarios[this.currentScenario].services);
+                    });
+            }
 
             renderChaosControls() {
                 const controls = document.getElementById('chaosControls');
@@ -488,13 +582,14 @@
                 const services = this.scenarios[this.currentScenario].services;
                 services.forEach(service => {
                     service.latency += Math.random() * 500;
-                    if (service.latency > 200) service.status = 'degraded';
+                    if (service.latency > 300) service.status = 'degraded';
                 });
 
                 this.systemMetrics.latency += 150;
                 this.systemMetrics.throughput *= 0.7;
                 this.systemMetrics.errorRate += 2.5;
 
+                this.renderServiceGraph(services)
                 this.renderServices();
                 this.renderChaosControls();
                 setTimeout(() => this.recoverFromChaos(), 10000);
@@ -516,6 +611,7 @@
                 this.systemMetrics.errorRate += 15.7;
                 
                 this.renderServices();
+                this.renderServiceGraph(services)
                 this.renderChaosControls();
                 setTimeout(() => this.recoverFromChaos(), 8000);
             }
@@ -534,6 +630,7 @@
                 this.systemMetrics.throughput *= 0.6;
                 this.systemMetrics.errorRate += 5.2;
 
+                this.renderServiceGraph(services)
                 this.renderServices();
                 this.renderChaosControls();
                 setTimeout(() => this.recoverFromChaos(), 12000);
@@ -553,7 +650,7 @@
                     this.systemMetrics.latency += 10;
                     this.systemMetrics.throughput *= 0.95;
                     this.systemMetrics.errorRate += 0.5;
-                    
+                    this.renderServiceGraph(services)
                     this.renderServices();
                 }, 1000);
 
@@ -579,7 +676,7 @@
                 this.systemMetrics.latency += 300;
                 this.systemMetrics.throughput *= 0.3;
                 this.systemMetrics.errorRate += 8.9;
-
+                this.renderServiceGraph(services)
                 this.renderServices();
                 this.renderChaosControls();
                 setTimeout(() => this.recoverFromChaos(), 14000);
@@ -605,6 +702,7 @@
                     }, failureDelay);
                     failureDelay += 1500;
                 });
+                this.renderServiceGraph(services)
 
                 this.systemMetrics.throughput *= 0.1;
                 this.systemMetrics.latency += 500;

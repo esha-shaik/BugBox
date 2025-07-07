@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" />
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <title>BugBox - Chaos Engineering Sandbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .panel h3 {
+            margin-bottom: 15px;
+            color: #4ecdc4;
+            font-size: 1.3em;
+        }
+
+        .service-mesh {
+            grid-column: 1 / -1;
+            margin-bottom: 20px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .service {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+
+        .service.healthy {
+            border-color: #4ecdc4;
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.3);
+        }
+
+        .service.degraded {
+            border-color: #ffd93d;
+            box-shadow: 0 0 15px rgba(255, 217, 61, 0.3);
+            animation: pulse-warning 2s infinite;
+        }
+
+        .service.failed {
+            border-color: #ff6b6b;
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.3);
+            animation: pulse-error 1s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        @keyframes pulse-error {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .service-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .service-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .service-status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .service-metrics {
+            margin-top: 10px;
+            font-size: 0.8em;
+        }
+
+        .chaos-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .chaos-button {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            border: none;
+            border-radius: 10px;
+            padding: 15px 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1em;
+        }
+
+        .chaos-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(238, 90, 82, 0.4);
+        }
+
+        .chaos-button:active {
+            transform: translateY(0);
+        }
+
+        .chaos-button:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .metrics-chart {
+            height: 200px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-top: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-line {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 100%;
+            background: linear-gradient(to right, transparent, rgba(78, 205, 196, 0.3));
+        }
+
+        .logs-container {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+
+        .log-info {
+            color: #4ecdc4;
+        }
+
+        .log-warning {
+            color: #ffd93d;
+            background: rgba(255, 217, 61, 0.1);
+        }
+
+        .log-error {
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .scenario-selector {
+            margin-bottom: 20px;
+        }
+
+        .scenario-selector select {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 10px 15px;
+            color: white;
+            font-size: 1em;
+            width: 100%;
+        }
+
+        .scenario-selector option {
+            background: #2a5298;
+            color: white;
+        }
+
+        .reset-button {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-left: 10px;
+        }
+
+        .reset-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(68, 160, 141, 0.4);
+        }
+
+        .connection-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, #4ecdc4, transparent);
+            opacity: 0.6;
+            animation: flow 2s linear infinite;
+        }
+
+        @keyframes flow {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .metric-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+
+        .metric-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .chaos-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .services-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>BugBox</h1>
+            <p>Educational Chaos Engineering Sandbox - Learn resilience patterns through controlled failure injection</p>
+        </div>
+
+        <div class="scenario-selector">
+            <select id="scenarioSelect">
+                <option value="ecommerce">E-commerce Platform</option>
+                <option value="banking">Banking System</option>
+                <option value="social">Social Media Platform</option>
+                <option value="iot">IoT Data Pipeline</option>
+            </select>
+            <button class="reset-button" onclick="resetSystem()">Reset System</button>
+        </div>
+
+        <div class="dashboard">
+            <div class="panel service-mesh">
+                <h3>Service Mesh Topology</h3>
+                <div class="services-grid" id="servicesGrid">
+                    <!-- Services will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>Chaos Engineering Controls</h3>
+                <div class="chaos-controls" id="chaosControls">
+                    <!-- Chaos buttons will be populated by JavaScript -->
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3>System Metrics</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; text-align: center;">
+                    <div>
+                        <div class="metric-value" id="throughput">847</div>
+                        <div class="metric-label">Req/sec</div>
+                    </div>
+                    <div>
+                        <div class="metric-value" id="latency">23ms</div>
+                        <div class="metric-label">Avg Latency</div>
+                    </div>
+                    <div>
+                        <div class="metric-value" id="errorRate">0.1%</div>
+                        <div class="metric-label">Error Rate</div>
+                    </div>
+                </div>
+                <div id="serviceGraph" style="height: 400px; background: rgba(255,255,255,0.05); border-radius: 10px;"></div>
+            </div>
+
+            <div class="panel">
+                <h3>System Logs & Traces</h3>
+                <div class="logs-container" id="logsContainer">
+                    <!-- Logs will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        async function fetchState() {
+            const res = await fetch('/api/state');
+            const data = await res.json();
+
+            document.getElementById('throughput').textContent = Math.round(data.metrics.throughput);
+            document.getElementById('latency').textContent = Math.round(data.metrics.latency) + 'ms';
+            document.getElementById('errorRate').textContent = data.metrics.errorRate.toFixed(1) + '%';
+
+            document.getElementById('logsContainer').innerHTML = data.logs.map(log =>
+                `<div class="log-entry log-${log.level}">[${new Date(log.timestamp).toLocaleTimeString()}] ${log.message}</div>`
+            ).join('');
+            const servicesGrid = document.getElementById('servicesGrid');
+            servicesGrid.innerHTML = data.services.map(service => `
+                <div class="service ${service.status}" data-service="${service.name}">
+                    <div class="service-icon">${service.icon}</div>
+                    <div class="service-name">${service.name}</div>
+                    <div class="service-status">${service.status.toUpperCase()}</div>
+                    <div class="service-metrics">
+                        <div>Latency: ${service.latency}ms</div>
+                        <div>CPU: ${service.cpu}%</div>
+                    </div>
+                </div>
+            `).join('');
+            renderServiceGraph(data.services);
+        }
+        let graphNetwork = null;
+
+        function renderServiceGraph(services) {
+            const container = document.getElementById('serviceGraph');
+
+            const nodes = services.map((service, i) => ({
+                id: service.name,
+                label: `${service.icon} ${service.name}`,
+                color: service.status === 'healthy' ? '#4ecdc4'
+                    : service.status === 'degraded' ? '#ffd93d'
+                    : '#ff6b6b'
+            }));
+
+            const edges = [];
+            for (let i = 1; i < services.length; i++) {
+                const fromService = services[Math.floor(Math.random() * i)];
+                const toService = services[i];
+                edges.push({
+                    from: fromService.name,
+                    to: toService.name,
+                    arrows: 'to',
+                    color: toService.latency > 150 ? '#ff6b6b'
+                        : toService.latency > 80 ? '#ffd93d'
+                        : '#4ecdc4'
+                });
+            }
+            const data = { nodes: new vis.DataSet(nodes), edges: new vis.DataSet(edges) };
+            const options = {
+                layout: {
+                    hierarchical: {
+                        direction: "LR",
+                        sortMethod: "directed"
+                    }
+                },
+                edges: {
+                    smooth: true,
+                    arrows: { to: { enabled: true } },
+                    color: '#999'
+                },
+                physics: false
+            };
+
+            if (!graphNetwork) {
+                graphNetwork = new vis.Network(container, data, options);
+            } else {
+                graphNetwork.setData(data);
+            }
+        }
+
+
+        async function injectChaos(type) {
+            await fetch(`/api/inject/${type}`, { method: 'POST' });
+            fetchState();
+        }
+
+        async function resetSystem() {
+            await fetch('/api/reset', { method: 'POST' });
+            fetchState();
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchState();
+            setInterval(fetchState, 3000); // Auto-refresh
+
+            const controls = [
+                { label: 'Latency', action: 'latency' },
+                { label: 'Failure', action: 'failure' },
+                { label: 'CPU Spike', action: 'cpu' }
+            ];
+
+            const chaosControls = document.getElementById('chaosControls');
+            chaosControls.innerHTML = controls.map(control =>
+                `<button class="chaos-button" onclick="injectChaos('${control.action}')">
+                    ${control.label}
+                </button>`
+            ).join('');
+        });
+    </script>
+</body>
+</html>
