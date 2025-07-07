@@ -36,18 +36,18 @@ Run `bugbox_demo.ipynb` in Jupyter to test simulate bug injection and observe me
 
 ### 3. Try the reproducible frontend
 
-Open [`reproducible.html`]() in your browser to interactively inject chaos and view the service graph.
+Open [`reproducible.html`](https://esha-shaik.github.io/BugBox/reproducible.html) in your browser to interactively inject chaos and view the service graph.
 
 #### Add your own service
 
 You can input your own **live API URL** to test with BugBox:
 
-Example working services:
+Example working services links:
 
 * [https://jsonplaceholder.typicode.com/posts/1](https://jsonplaceholder.typicode.com/posts/1)
 * [https://catfact.ninja/fact](https://catfact.ninja/fact)
 
-Example failing services:
+Example failing services links:
 
 * [https://httpstat.us/200](https://httpstat.us/200) — always returns 200 OK
 * [https://httpstat.us/500](https://httpstat.us/500) — simulates a server error
